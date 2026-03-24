@@ -1,0 +1,5 @@
+{
+  "name": "Nebula Launcher",
+  "description": "A modular, clean architecture Android launcher built with Jetpack Compose and Hilt.",
+  "requestFramePermissions": []
+}
