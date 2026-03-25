@@ -2,6 +2,7 @@ package com.nebula.launcher.feature.home
 
 import android.content.Intent
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -147,6 +148,15 @@ fun HomeScreen(
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+
+    BackHandler(enabled = isSearchVisible || selectedNodeMenu != null) {
+        if (selectedNodeMenu != null) {
+            viewModel.closeMenu()
+        } else if (isSearchVisible) {
+            isSearchVisible = false
+            searchQuery = ""
+        }
+    }
 
     val searchResults = remember(searchQuery, appNodes) {
         if (searchQuery.isBlank()) emptyList()
