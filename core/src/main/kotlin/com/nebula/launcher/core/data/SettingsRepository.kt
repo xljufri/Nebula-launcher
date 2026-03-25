@@ -32,6 +32,14 @@ class SettingsRepository @Inject constructor(
         preferences[PreferencesKeys.HAS_COMPLETED_ONBOARDING] ?: false
     }
 
+    val physicsStrength: Flow<Float> = dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.PHYSICS_STRENGTH] ?: 1.0f
+    }
+
+    val showAppList: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.SHOW_APP_LIST] ?: false
+    }
+
     suspend fun setFocusModeEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.FOCUS_MODE] = enabled
@@ -50,9 +58,23 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    suspend fun setPhysicsStrength(strength: Float) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.PHYSICS_STRENGTH] = strength
+        }
+    }
+
+    suspend fun setShowAppList(show: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.SHOW_APP_LIST] = show
+        }
+    }
+
     private object PreferencesKeys {
         val FOCUS_MODE = booleanPreferencesKey("focus_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
+        val PHYSICS_STRENGTH = androidx.datastore.preferences.core.floatPreferencesKey("physics_strength")
+        val SHOW_APP_LIST = booleanPreferencesKey("show_app_list")
     }
 }

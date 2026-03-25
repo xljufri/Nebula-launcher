@@ -45,6 +45,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.nebula.launcher.core.model.AppNode
 import com.nebula.launcher.feature.home.state.CanvasState
 import com.nebula.launcher.feature.home.ui.RadialMenu
+import com.nebula.launcher.feature.home.ui.OnboardingOverlay
+import com.nebula.launcher.feature.home.ui.WeatherWidget
 import kotlin.math.roundToInt
 
 import androidx.compose.animation.AnimatedVisibility
@@ -52,6 +54,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -79,6 +83,18 @@ import androidx.lifecycle.LifecycleEventObserver
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -116,6 +132,8 @@ fun HomeScreen(
     val selectedNodeMenu by viewModel.selectedNodeMenu.collectAsState()
     val isFocusModeEnabled by viewModel.isFocusModeEnabled.collectAsState()
     val hasCompletedOnboarding by viewModel.hasCompletedOnboarding.collectAsState()
+    val showAppList by viewModel.showAppList.collectAsState()
+    val weatherData by viewModel.weatherData.collectAsState()
     
     var onboardingStep by remember { mutableStateOf(1) }
     
@@ -129,6 +147,11 @@ fun HomeScreen(
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
     var isSearchVisible by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+
+    val searchResults = remember(searchQuery, appNodes) {
+        if (searchQuery.isBlank()) emptyList()
+        else appNodes.filter { it.label.contains(searchQuery, ignoreCase = true) }
+    }
 
     LaunchedEffect(screenWidthPx, screenHeightPx) {
         viewModel.checkPermissionAndLoadApps(screenWidthPx, screenHeightPx)
@@ -172,7 +195,8 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Transparent)
-            .pointerInput(selectedNodeMenu, isFocusModeEnabled) {
+            .pointerInput(selectedNodeMenu, isFocusModeEnabled, showAppList) {
+                if (showAppList) return@pointerInput
                 if (isFocusModeEnabled) {
                     detectTransformGestures { _, pan, _, _ ->
                         if (pan.y > 20f) {
@@ -226,8 +250,62 @@ fun HomeScreen(
                 )
         )
 
-        AnimatedVisibility(
-            visible = !isFocusModeEnabled,
+        if (!showAppList && !isFocusModeEnabled) {
+            WeatherWidget(
+                weather = weatherData,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 100.dp)
+            )
+        }
+
+        if (showAppList) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .statusBarsPadding(),
+                contentPadding = PaddingValues(top = 80.dp, bottom = 100.dp)
+            ) {
+                items(appNodes.sortedBy { it.label }) { node ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .clickable {
+                                val intent = context.packageManager.getLaunchIntentForPackage(node.packageName)
+                                intent?.let { context.startActivity(it) }
+                            }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .background(Color.White.copy(alpha = 0.1f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = node.label.take(1).uppercase(),
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = node.label,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        } else {
+            AnimatedVisibility(
+                visible = !isFocusModeEnabled,
             enter = fadeIn(animationSpec = tween(500)),
             exit = fadeOut(animationSpec = tween(500))
         ) {
@@ -354,6 +432,7 @@ fun HomeScreen(
                 }
             }
         }
+    }
 
         AnimatedVisibility(
             visible = isFocusModeEnabled,
@@ -406,39 +485,125 @@ fun HomeScreen(
                 .statusBarsPadding()
                 .padding(16.dp)
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Cari aplikasi...", color = Color.White.copy(alpha = 0.5f)) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color.White.copy(alpha = 0.7f)
+            Column {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Cari aplikasi...", color = Color.White.copy(alpha = 0.5f)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color.White.copy(alpha = 0.7f)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.White,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Color.White
+                    ),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(
+                        onSearch = {
+                            if (searchResults.isNotEmpty()) {
+                                val intent = context.packageManager.getLaunchIntentForPackage(searchResults[0].packageName)
+                                intent?.let { context.startActivity(it) }
+                                isSearchVisible = false
+                                searchQuery = ""
+                            }
+                        }
                     )
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.White,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color.White
-                ),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(
-                    onSearch = {
-                        val matchingApp = appNodes.find { it.label.contains(searchQuery, ignoreCase = true) }
-                        if (matchingApp != null) {
-                            val intent = context.packageManager.getLaunchIntentForPackage(matchingApp.packageName)
-                            intent?.let { context.startActivity(it) }
-                            isSearchVisible = false
-                            searchQuery = ""
+                )
+
+                if (searchResults.isNotEmpty()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .background(Color.Black.copy(alpha = 0.8f), MaterialTheme.shapes.medium)
+                            .heightIn(max = 300.dp)
+                    ) {
+                        items(searchResults) { node ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val intent = context.packageManager.getLaunchIntentForPackage(node.packageName)
+                                        intent?.let { context.startActivity(it) }
+                                        isSearchVisible = false
+                                        searchQuery = ""
+                                    }
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(Color.White.copy(alpha = 0.1f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(node.label.take(1), color = Color.White)
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(text = node.label, color = Color.White)
+                            }
                         }
                     }
-                )
-            )
+                }
+            }
+        }
+
+        // Onboarding Overlay
+        if (onboardingStep > 0) {
+            OnboardingOverlay(step = onboardingStep)
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = { 
+                            viewModel.completeOnboarding()
+                            onboardingStep = 0
+                        }
+                    ) {
+                        Text("Lewati", color = Color.White.copy(alpha = 0.7f))
+                    }
+                    
+                    if (onboardingStep == 3) {
+                        Button(
+                            onClick = { 
+                                viewModel.completeOnboarding()
+                                onboardingStep = 0
+                            }
+                        ) {
+                            Text("Selesai")
+                        }
+                    }
+                }
+            }
         }
     }
 }

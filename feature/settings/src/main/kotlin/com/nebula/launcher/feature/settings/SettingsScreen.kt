@@ -32,6 +32,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+
+import androidx.compose.material3.Slider
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -40,6 +46,8 @@ fun SettingsScreen(
 ) {
     val isFocusModeEnabled by viewModel.isFocusModeEnabled.collectAsState()
     val isDynamicColorEnabled by viewModel.isDynamicColorEnabled.collectAsState()
+    val physicsStrength by viewModel.physicsStrength.collectAsState()
+    val showAppList by viewModel.showAppList.collectAsState()
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
     val versionName = try {
@@ -83,6 +91,37 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setDynamicColorEnabled
             )
 
+            SettingSwitchRow(
+                title = "Tampilkan Daftar Aplikasi",
+                subtitle = "Gunakan tampilan daftar standar sebagai ganti antarmuka Nebula.",
+                checked = showAppList,
+                onCheckedChange = viewModel::setShowAppList
+            )
+
+            Spacer(modifier = Modifier.padding(16.dp))
+
+            Text(
+                text = "Simulasi Fisika",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                Text(text = "Kekuatan Gravitasi: ${(physicsStrength * 100).toInt()}%", style = MaterialTheme.typography.bodyLarge)
+                Slider(
+                    value = physicsStrength,
+                    onValueChange = viewModel::setPhysicsStrength,
+                    valueRange = 0f..2f,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                Text(
+                    text = "Mengurangi kekuatan dapat menghemat baterai.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             Spacer(modifier = Modifier.padding(16.dp))
 
             Text(
@@ -101,6 +140,60 @@ fun SettingsScreen(
                     viewModel.setFocusModeEnabled(it) 
                 }
             )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text(
+                text = "Pemeliharaan",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Button(
+                onClick = { 
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    viewModel.resetNodePositions() 
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+            ) {
+                Text("Reset Posisi Node")
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = { 
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    viewModel.resetOnboarding() 
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+            ) {
+                Text("Ulangi Panduan (Onboarding)")
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Analisis Project",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Column(modifier = Modifier.padding(horizontal = 8.dp)) {
+                Text(text = "Kelebihan:", style = MaterialTheme.typography.titleSmall)
+                Text(text = "• UI Unik berbasis fisika (Physics-based UI)\n• Stack modern (Compose, Hilt, DataStore)\n• Mode Fokus untuk produktivitas\n• Tema dinamis Material You", style = MaterialTheme.typography.bodyMedium)
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(text = "Kekurangan:", style = MaterialTheme.typography.titleSmall)
+                Text(text = "• Navigasi awal mungkin membingungkan (sudah ditambah panduan)\n• Konsumsi baterai simulasi fisika (sudah dioptimasi dengan Lifecycle)\n• Fitur pencarian masih dasar", style = MaterialTheme.typography.bodyMedium)
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
             Text(

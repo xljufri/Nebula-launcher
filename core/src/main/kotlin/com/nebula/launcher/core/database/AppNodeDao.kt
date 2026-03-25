@@ -13,4 +13,7 @@ interface AppNodeDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(nodes: List<AppNode>)
+
+    @Query("DELETE FROM app_nodes")
+    suspend fun deleteAll()
 }

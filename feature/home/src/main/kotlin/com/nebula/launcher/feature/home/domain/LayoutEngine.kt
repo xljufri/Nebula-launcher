@@ -7,7 +7,7 @@ import kotlin.math.sqrt
 
 class LayoutEngine @Inject constructor() {
     
-    fun updatePositions(nodes: List<AppNode>, clusters: List<AppCluster>, baseRadiusPx: Float): List<AppNode> {
+    fun updatePositions(nodes: List<AppNode>, clusters: List<AppCluster>, baseRadiusPx: Float, physicsStrength: Float): List<AppNode> {
         val updatedNodes = nodes.toMutableList()
         
         for (i in updatedNodes.indices) {
@@ -26,9 +26,9 @@ class LayoutEngine @Inject constructor() {
             val dx = cluster.centerX - nodeCenterX
             val dy = cluster.centerY - nodeCenterY
             
-            // Move 2% towards the center each tick
-            newX += dx * 0.02f
-            newY += dy * 0.02f
+            // Move towards the center each tick, scaled by physicsStrength
+            newX += dx * 0.02f * physicsStrength
+            newY += dy * 0.02f * physicsStrength
             
             // Update node center for repulsion
             val updatedNodeCenterX = newX + nodeRadius
@@ -55,8 +55,8 @@ class LayoutEngine @Inject constructor() {
                     val distance = sqrt(distanceSq)
                     val overlap = minDistance - distance
                     
-                    // Push apart proportionally to overlap
-                    val pushFactor = (overlap / distance) * 0.1f
+                    // Push apart proportionally to overlap, scaled by physicsStrength
+                    val pushFactor = (overlap / distance) * 0.1f * physicsStrength
                     newX += diffX * pushFactor
                     newY += diffY * pushFactor
                 }

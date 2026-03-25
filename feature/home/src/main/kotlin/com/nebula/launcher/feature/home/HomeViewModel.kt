@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.nebula.launcher.core.model.AppCluster
 import com.nebula.launcher.core.model.AppNode
 import com.nebula.launcher.core.model.RadialAction
+import com.nebula.launcher.core.model.WeatherData
 import com.nebula.launcher.feature.home.data.AppRepository
 import com.nebula.launcher.feature.home.data.ShortcutRepository
 import com.nebula.launcher.feature.home.domain.AppClassifier
@@ -61,6 +62,20 @@ class HomeViewModel @Inject constructor(
             initialValue = false
         )
 
+    val physicsStrength: StateFlow<Float> = settingsRepository.physicsStrength
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 1.0f
+        )
+
+    val showAppList: StateFlow<Boolean> = settingsRepository.showAppList
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
     fun completeOnboarding() {
         viewModelScope.launch {
             settingsRepository.setHasCompletedOnboarding(true)
@@ -78,6 +93,19 @@ class HomeViewModel @Inject constructor(
 
     private val _selectedNodeMenu = MutableStateFlow<String?>(null)
     val selectedNodeMenu: StateFlow<String?> = _selectedNodeMenu.asStateFlow()
+
+    private val _weatherData = MutableStateFlow<WeatherData?>(null)
+    val weatherData: StateFlow<WeatherData?> = _weatherData.asStateFlow()
+
+    init {
+        // Mock weather data
+        _weatherData.value = WeatherData(
+            temperature = 28,
+            condition = "Sunny",
+            city = "Jakarta",
+            description = "Cerah Berawan"
+        )
+    }
 
     private var physicsJob: kotlinx.coroutines.Job? = null
 
@@ -136,14 +164,18 @@ class HomeViewModel @Inject constructor(
             while (isActive) {
                 val currentNodes = _appNodes.value
                 val currentClusters = _appClusters.value
+                val strength = physicsStrength.value
                 
-                if (currentNodes.isNotEmpty() && currentClusters.isNotEmpty()) {
+                if (currentNodes.isNotEmpty() && currentClusters.isNotEmpty() && strength > 0.05f) {
                     val baseRadiusPx = 40f * context.resources.displayMetrics.density
-                    val updatedNodes = layoutEngine.updatePositions(currentNodes, currentClusters, baseRadiusPx)
+                    val updatedNodes = layoutEngine.updatePositions(currentNodes, currentClusters, baseRadiusPx, strength)
+                    
                     _appNodes.value = updatedNodes
                 }
                 
-                delay(16) // ~60fps
+                // Adjust delay based on strength to save battery
+                val frameDelay = if (strength < 0.5f) 32L else 16L
+                delay(frameDelay)
             }
         }
     }
